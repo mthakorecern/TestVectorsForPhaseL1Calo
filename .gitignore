@@ -1,0 +1,29 @@
+# Build products
+*.o
+*.so
+*.a
+*.out
+*.exe
+
+# Executables
+ip1_tester
+zerotester
+
+# Logs
+*.log
+
+# ROOT files
+*.root
+
+# Temporary/editor files
+*~
+*.swp
+.DS_Store
+
+# Generated input/output folders
+src/outputs/
+src/inputs/
+
+# Python cache
+__pycache__/
+*.pyc
