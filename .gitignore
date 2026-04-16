@@ -11,6 +11,8 @@ zerotester
 
 # Logs
 *.log
+*.csv
+*.txt
 
 # ROOT files
 *.root
