@@ -14,8 +14,8 @@
 #define createClusters1     createClusters1_2x6
 #define createTowers        createTowers_2x6
 
-#include "../scripts/fw_IP1_2x6/2x6algo_top.h"
-#include "../scripts/fw_IP1_2x6/2x6algo_top.cpp"
+#include "../../scripts/FW/IP1/2x6algo_top.h"
+#include "../../scripts/FW/IP1/2x6algo_top.cpp"
 
 #undef algo_top
 #undef processOutputLinks

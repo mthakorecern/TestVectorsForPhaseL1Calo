@@ -8,7 +8,7 @@ INCLUDES := \
 	-I../test/Adapters \
 	-I../scripts/FW/IP1
 
-TARGET := /outputs/ip1_tester
+TARGET := ip1_tester
 # TARGET := zerotester
 
 SRCS := \

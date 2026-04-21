@@ -14,8 +14,8 @@
 #define createClusters1     createClusters1_5x6
 #define createTowers        createTowers_5x6
 
-#include "../scripts/fw_IP1_5x6/5x6algo_top.h"
-#include "../scripts/fw_IP1_5x6/5x6algo_top.cpp"
+#include "../../scripts/FW/IP1/5x6algo_top.h"
+#include "../../scripts/FW/IP1/5x6algo_top.cpp"
 
 #undef algo_top
 #undef processOutputLinks
