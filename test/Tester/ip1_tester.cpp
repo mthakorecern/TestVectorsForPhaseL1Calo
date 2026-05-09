@@ -3,12 +3,11 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <map>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
-
+#include <cstdlib>
 #include "ap_int.h"
 
 extern "C" void run_ip1_5x6(const ap_uint<576>* in, ap_uint<576>* out);
@@ -16,7 +15,38 @@ extern "C" void run_ip1_2x6(const ap_uint<576>* in, ap_uint<576>* out);
 
 namespace {
 
+void ensureDir(const std::string& dir) {
+  std::string cmd = "mkdir -p \"" + dir + "\"";
+  int ret = std::system(cmd.c_str());
+  if (ret != 0) {
+    throw std::runtime_error("Failed to create directory: " + dir);
+  }
+}
 
+struct DumpDirs {
+  std::string base;
+  std::string output;
+  std::string decoded;
+  std::string outputIP1;
+  std::string decodedIP1;
+};
+
+DumpDirs makeDumpDirs(const std::string& base) {
+  DumpDirs d;
+  d.base = base;
+  d.output = d.base + "/output";
+  d.decoded = d.base + "/decoded";
+  d.outputIP1 = d.output + "/IP1";
+  d.decodedIP1 = d.decoded + "/IP1";
+  return d;
+}
+
+void ensureFWOutputDirs(const DumpDirs& d) {
+  ensureDir(d.output);
+  ensureDir(d.decoded);
+  ensureDir(d.outputIP1);
+  ensureDir(d.decodedIP1);
+}
 
 
 std::string trim(const std::string& s) {
@@ -73,58 +103,72 @@ ap_uint<576> parseHex576(std::string s) {
   return out;
 }
 
-struct SectionSpec {
-  std::string name;
-  int n_inputs;
-  bool is_5x6;
-};
 
-const std::vector<SectionSpec> kSpecs = {
-    {"SLR3_5x6_INPUT", 30, true},
-    {"SLR2_5x6_INPUT", 30, true},
-    {"SLR1_5x6_INPUT", 30, true},
-    {"SLR0_2x6_INPUT", 12, false},
-};
+std::vector<std::string> splitCSVLine(const std::string& line) {
+  std::vector<std::string> out;
+  std::stringstream ss(line);
+  std::string item;
+  while (std::getline(ss, item, ',')) {
+    out.push_back(item);
+  }
+  return out;
+}
 
-
-std::map<std::string, std::vector<ap_uint<576>>> parseInputFile(const std::string& path) {
+std::vector<ap_uint<576>> parseRawLinkCSV(const std::string& path) {
   std::ifstream in(path);
   if (!in.is_open()) {
-    throw std::runtime_error("Could not open input file: " + path);
+    throw std::runtime_error("Could not open CSV input file: " + path);
   }
 
-  std::map<std::string, std::vector<ap_uint<576>>> sections;
-  std::string current;
+  std::string headerLine;
+  if (!std::getline(in, headerLine)) {
+    throw std::runtime_error("Empty CSV file: " + path);
+  }
+
+  auto headers = splitCSVLine(headerLine);
+  int rawHexCol = -1;
+  int indexCol  = -1;
+
+  for (int i = 0; i < (int)headers.size(); ++i) {
+    std::string h = trim(headers[i]);
+    if (h == "raw_hex") rawHexCol = i;
+    if (h == "link_index_dec") indexCol = i;
+  }
+
+  if (rawHexCol < 0) {
+    throw std::runtime_error("CSV missing raw_hex column: " + path);
+  }
+
+  std::vector<std::pair<int, ap_uint<576>>> indexed;
   std::string line;
 
   while (std::getline(in, line)) {
-    std::string t = trim(line);
-    if (t.empty()) continue;
+    if (trim(line).empty()) continue;
+    auto cols = splitCSVLine(line);
+    if ((int)cols.size() <= rawHexCol) continue;
 
-    bool matched_section = false;
-    for (const auto& spec : kSpecs) {
-      if (t == spec.name) {
-        current = spec.name;
-        matched_section = true;
-        break;
-      }
+    int idx = (int)indexed.size();
+    if (indexCol >= 0 && indexCol < (int)cols.size()) {
+      idx = std::stoi(trim(cols[indexCol]));
     }
-    if (matched_section) continue;
 
-    if (current.empty()) continue;
-    if (t.find("link_in[") != 0) continue;
-
-    std::size_t colon = t.find(':');
-    if (colon == std::string::npos) continue;
-
-    std::string value = trim(t.substr(colon + 1));
-    if (value.empty()) continue;
-
-    sections[current].push_back(parseHex576(value));
+    ap_uint<576> word = parseHex576(trim(cols[rawHexCol]));
+    indexed.push_back({idx, word});
   }
 
-  return sections;
+  std::sort(indexed.begin(), indexed.end(),
+          [](const std::pair<int, ap_uint<576>>& a,
+             const std::pair<int, ap_uint<576>>& b) {
+            return a.first < b.first;
+          });
+
+  std::vector<ap_uint<576>> out;
+  out.reserve(indexed.size());
+  for (const auto& x : indexed) out.push_back(x.second);
+  return out;
 }
+
+
 
 void printRawOutputs(const std::string& label, const ap_uint<576>* out, int n) {
   std::cout << label << "\n";
@@ -330,7 +374,7 @@ void writeDecodedCSVHeader(std::ofstream& out) {
 
 void dumpDecoded5x6CSV(std::ofstream& out,
                        const std::string& slrLabel,
-                       ap_uint<576>* links) {
+                       const ap_uint<576>* links) {
   // clusters from links[0]
   for (int i = 0; i < 9; ++i) {
     int start = i * 64;
@@ -389,7 +433,7 @@ void dumpDecoded5x6CSV(std::ofstream& out,
 
 void dumpDecoded2x6CSV(std::ofstream& out,
                        const std::string& slrLabel,
-                       ap_uint<576>* links) {
+                       const ap_uint<576>* links) {
   // clusters from links[0]
   for (int i = 0; i < 3; ++i) {
     int start = i * 64;
@@ -446,18 +490,50 @@ void dumpDecoded2x6CSV(std::ofstream& out,
   }
 }
 
-std::string slrLabelFromSection(const std::string& sectionName) {
-  if (sectionName.find("SLR3") != std::string::npos) return "SLR3";
-  if (sectionName.find("SLR2") != std::string::npos) return "SLR2";
-  if (sectionName.find("SLR1") != std::string::npos) return "SLR1";
-  if (sectionName.find("SLR0") != std::string::npos) return "SLR0";
-  return "UNKNOWN";
+void dumpRawLinksCSVSimple(std::ofstream& out,
+                           int card,
+                           unsigned long long eventId,
+                           const std::string& component,
+                           const std::string& direction,
+                           const ap_uint<576>* links,
+                           int nLinks) {
+  out << "card,event,component,direction,link_index_dec,link_index_hex,raw_hex\n";
+  for (int i = 0; i < nLinks; ++i) {
+    out << card << ","
+        << eventId << ","
+        << component << ","
+        << direction << ","
+        << i << ","
+        << hexIndex(i) << ","
+        << formatApUint576(links[i]) << "\n";
+  }
 }
 
-void runOne(const SectionSpec& spec, const std::vector<ap_uint<576>>& in_words) {
-  if ((int)in_words.size() != spec.n_inputs) {
+void writeRawLinksCSVFile(const std::string& fileName,
+                          int card,
+                          unsigned long long eventId,
+                          const std::string& component,
+                          const std::string& direction,
+                          const ap_uint<576>* links,
+                          int nLinks) {
+  std::ofstream out(fileName);
+  if (!out.is_open()) {
+    throw std::runtime_error("Could not open output file: " + fileName);
+  }
+  dumpRawLinksCSVSimple(out, card, eventId, component, direction, links, nLinks);
+}
+
+void runOne(const std::string& slrLabel,
+            const std::string& component,
+            bool is5x6,
+            const std::vector<ap_uint<576>>& in_words,
+            const DumpDirs& dirs,
+            int expectedInputs,
+            int card,
+            unsigned long long eventId) {
+  if ((int)in_words.size() != expectedInputs) {
     std::ostringstream os;
-    os << "Section " << spec.name << " expected " << spec.n_inputs
+    os << "Component " << component << " expected " << expectedInputs
        << " input links but got " << in_words.size();
     throw std::runtime_error(os.str());
   }
@@ -465,37 +541,39 @@ void runOne(const SectionSpec& spec, const std::vector<ap_uint<576>>& in_words) 
   ap_uint<576> out[2] = {0, 0};
 
   std::cout << "========================================\n";
-  std::cout << spec.name << "\n";
-  
+  std::cout << component << "\n";
   printParsedInputs("parsed FW inputs", in_words);
 
-  if (spec.is_5x6) {
+  if (is5x6) {
     run_ip1_5x6(in_words.data(), out);
-    printRawOutputs("raw outputs", out, 2);
-    decode5x6Outputs(out);
-    printCompactSummary5x6(out);
   } else {
     run_ip1_2x6(in_words.data(), out);
-    printRawOutputs("raw outputs", out, 2);
-    decode2x6Outputs(out);
-    printCompactSummary2x6(out);
   }
 
-  // write one CSV per section
-  std::string slrLabel = slrLabelFromSection(spec.name);
-  std::string csvName = slrLabel + "_fw_decoded.csv";
+  printRawOutputs("raw outputs", out, 2);
 
-  std::ofstream csv(csvName);
-  writeDecodedCSVHeader(csv);
+  // raw FW output links in emulator-style raw-link CSV
+  {
+    std::string rawOutFile =
+    dirs.outputIP1 + "/card_" + std::to_string(card) +
+    "_event_" + std::to_string(eventId) +
+    "_" + component + "_output_links.csv";
 
-  if (spec.is_5x6) {
-    dumpDecoded5x6CSV(csv, slrLabel, out);
-  } else {
-    dumpDecoded2x6CSV(csv, slrLabel, out);
+    writeRawLinksCSVFile(rawOutFile, card, eventId, component, "output", out, 2);
   }
 
-  csv.close();
-  std::cout << "Wrote " << csvName << "\n";
+  // decoded FW output CSV in emulator-style decoded format
+  {
+    std::string decodedFile = dirs.decodedIP1 + "/" + slrLabel + "_fw_decoded.csv";
+    std::ofstream csv(decodedFile);
+    writeDecodedCSVHeader(csv);
+
+    if (is5x6) {
+      dumpDecoded5x6CSV(csv, slrLabel, out);
+    } else {
+      dumpDecoded2x6CSV(csv, slrLabel, out);
+    }
+  }
 
   std::cout << "\n";
 }
@@ -503,22 +581,53 @@ void runOne(const SectionSpec& spec, const std::vector<ap_uint<576>>& in_words) 
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " rct_card_X_ip1_io.txt\n";
+  if (argc != 5) {
+    std::cerr << "Usage: " << argv[0]
+              << " <input_ip1_dir> <output_base_dir> <card> <event>\n";
     return 1;
   }
 
   try {
-    auto sections = parseInputFile(argv[1]);
+    std::string inputIP1Dir = argv[1];
+    std::string outputBaseDir = argv[2];
+    int card = std::stoi(argv[3]);
+    unsigned long long eventId = std::stoull(argv[4]);
 
-    for (const auto& spec : kSpecs) {
-      auto it = sections.find(spec.name);
-      if (it == sections.end()) {
-        std::cout << "Skipping missing section: " << spec.name << "\n";
-        continue;
-      }
-      runOne(spec, it->second);
+    DumpDirs dirs = makeDumpDirs(outputBaseDir);
+    ensureFWOutputDirs(dirs);
+
+    struct JobSpec {
+      std::string slrLabel;
+      std::string component;
+      int nInputs;
+      bool is5x6;
+    };
+
+    std::vector<JobSpec> jobs = {
+      {"SLR3", "IP1_SLR3_5x6", 30, true},
+      {"SLR2", "IP1_SLR2_5x6", 30, true},
+      {"SLR1", "IP1_SLR1_5x6", 30, true},
+      {"SLR0", "IP1_SLR0_2x6", 12, false},
+    };
+
+    for (const auto& job : jobs) {
+      std::string inputFile =
+          inputIP1Dir + "/card_" + std::to_string(card) +
+          "_event_" + std::to_string(eventId) +
+          "_" + job.component + "_input_links.csv";
+
+      auto in_words = parseRawLinkCSV(inputFile);
+
+      runOne(job.slrLabel,
+             job.component,
+             job.is5x6,
+             in_words,
+             dirs,
+             job.nInputs,
+             card,
+             eventId);
     }
+
   } catch (const std::exception& ex) {
     std::cerr << "ERROR: " << ex.what() << "\n";
     return 2;

@@ -7,6 +7,10 @@
 
 # Executables
 ip1_tester
+ip21_tester
+ip22_tester
+ip3_tester
+rct_fw_tester
 zerotester
 
 # Logs
