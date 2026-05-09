@@ -2,7 +2,7 @@
 
 This software package currently is capable for performing the following tasks:
 
-1. Take a GEN-SIM-DIGI-RAW-MINIAOD file corresponding to a particular physics process and process it to retain the desired number of events, object collections, etc.
+1. Take a ```GEN-SIM-DIGI-RAW-MINIAOD``` file corresponding to a particular physics process and process it to retain the desired number of events, object collections, etc.
 
 2. Take the same input corresponding to a particular RCT card, as provided to the RCT emulator and pass it to the FW code, sequentially through the different IPs.
 
