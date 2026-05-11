@@ -70,6 +70,18 @@ scram b -j 12
 ```
 All of this is required to be done only once.
 
+To get the Inputs/Outputs corresponding to a single RCT card in the form of csv files, run the following command
+```
+cd L1Trigger/L1CaloPhase2Analyzer/test/
+cmsRun test-analyzer.py
+```
 
+Note: The input test vector will have to be specified in the ```test-analyzer.py``` script.
 
+The I/O of corresponding to the physics test vector will be stored in the directory ```L1CaloPhase2Analyzer/test/rct_IO/<card>_<cardno.>_<event>_<event.no>```
 
+Each event folder will have the following sub-directories:
+- crystals (containing the csv file with input given to the crystals)
+- decoded (containing the csv file with outputs corresponding to IP1 SLRs - 0, 1, 2 & 3)
+- input (containing sub-directories (IP1, IP21, IP22 and IP3) each containing csv files with inputs given to each component of the emulator)
+- output (containing sub-directories (IP1, IP21, IP22 and IP3) each containing csv files with outputs from each stage of the emulator)
