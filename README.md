@@ -157,5 +157,12 @@ This will compile all the FW source code corresponding to user specified IP and 
 ```
 
 
+## Comparing the outputs of the Emulator and Firmware
+
+For comparing the outputs of the emulator and the FW code, use the following command
+```
+python3 compare.py <Emulator-Output-directory> <Firmware-Output-directory>
+```
+
 
 
