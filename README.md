@@ -11,11 +11,18 @@ This software package currently is capable for performing the following tasks:
 
 ## Producing Physics Test Vectors using a MiniAOD file
 
-Note: This part of the codebase needs to be run either in a CMSSW area or can be run anywhere after activating a CMSSW virtual environment (```cmsenv```). Also, a valid grid proxy is required for running this code - ```voms-proxy-init -voms cms -out /tmp/x509up_u10196 -valid 192:00```.
+Note: This part of the codebase needs to be run either in a CMSSW area (say ```CMSSW_15_0_0/src/```) or can be run anywhere after activating a CMSSW virtual environment (```cmsenv```). Also, a valid grid proxy is required for running this code - ```voms-proxy-init -voms cms -out /tmp/x509up_u10196 -valid 192:00```.
 
 
+Let's say we want to produce a test vector with 10 events corresponding to a TTToSemileptonic process. 
 
-Let's say we want to produce a test vector with 10 events corresponding to a TTToSemileptonic process. Then inside the ```metadata``` folder, we can run the following command
+First we need to clone the repository
+```
+git clone https://github.com/mthakorecern/TestVectorsForPhase2L1Calo.git -b RCT_Final
+cd TestVectorsForPhase2L1Calo/metadata/
+```
+
+Then inside the ```metadata``` folder, we can run the following command
 
 ```
 python3 TestVectorproducer.py \
