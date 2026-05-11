@@ -120,8 +120,41 @@ This will generate generate and store the FW outputs in the specified directory 
 - output (containing sub-directories (IP1, IP21, IP22 and IP3) each containing csv files with outputs from each of the IPs of the FW)
 
 
+### Individual IP testing 
 
+#### For IP1
 
+```
+cd TestVectorsForPhase2L1Calo/src/
+make ip1_tester
+```
+
+This will compile all the FW source code corresponding to IP1 and produce executable binaries that can we use to test the physics test vectors. 
+
+```
+./ip1_tester \
+    <path-to-a-single-RCT-card-IP1-IO-from-the-emulator> \
+    <Ouput-directory>    \
+    <rct-card-no>   \
+    <event-number>
+```
+
+#### For IP21/IP22/IP3
+
+```
+cd TestVectorsForPhase2L1Calo/src/
+make <ip21/ip22/ip3_tester>
+```
+
+This will compile all the FW source code corresponding to user specified IP and produce executable binaries that can we use to test the physics test vectors. 
+
+```
+./<ip21/22/3>_tester \
+    <path-to-the-output-folder-of-previous-IP> \
+    <Ouput-directory>    \
+    <rct-card-no>   \
+    <event-number>
+```
 
 
 
