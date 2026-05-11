@@ -32,3 +32,44 @@ Note: One can find MINIAODs for various physics processes using the following qu
 
 or at the following link: 
 https://cmsweb.cern.ch/das/request?view=list&limit=50&instance=prod%2Fglobal&input=dataset%3D%2F*%2FPhase2Spring24DIGIRECOMiniAOD-PU200_Trk1GeV_140X_mcRun4_realistic_v4-v2%2FGEN-SIM-DIGI-RAW-MINIAOD
+
+
+## Testing the firmware code
+
+For testing the FW code and to ensure that its outputs align to that of the emulator, we first need to pass the test vector through the emulator. 
+
+To run the emulator, we first need to set up a particular version of CMSSW. 
+
+### Setting up the CMSSW
+```
+cmssw-el8
+cmsrel CMSSW_15_0_0_pre3
+cd CMSSW_15_0_0_pre3/src
+cmsenv
+git cms-init
+git cms-addpkg L1Trigger/L1TCalorimeter
+git cms-addpkg L1Trigger/L1CaloTrigger
+git cms-addpkg DataFormats/L1TCalorimeterPhase2
+```
+
+Now we want to use a particular version of the Phase2 L1 Calo RCT emulator code (originally written by Ryan P. Simeon).
+
+```
+git remote add mitanshu-cmssw https://github.com/mthakorecern/cmssw.git
+git fetch mitanshu-cmssw
+git checkout -b singleRCTcard mitanshu-cmssw/singleRCTcard
+git pull
+```
+
+We will also need to setup an analyzer area to test the emulator (also written by Ryan P. Simeon).
+```
+cd L1Trigger
+git clone https://github.com/rpsimeon34/L1CaloPhase2Analyzer.git -b 15_0_0_pre3_calojet
+cd ../
+scram b -j 12
+```
+All of this is required to be done only once.
+
+
+
+
